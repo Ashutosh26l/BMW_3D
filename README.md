@@ -4,7 +4,7 @@ A production-grade BMW virtual showroom built with React, Three.js, Tailwind CSS
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
 ```bash
 # Install dependencies
