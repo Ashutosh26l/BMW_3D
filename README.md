@@ -4,13 +4,13 @@ A production-grade BMW virtual showroom built with React, Three.js, Tailwind CSS
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
 ```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Start development Server
 npm run dev
 
 # Build for production
