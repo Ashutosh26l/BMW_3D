@@ -23,7 +23,7 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto; /* Lenis handles smooth scroll now */
   }
 
   body {
@@ -55,7 +55,7 @@
   }
 
   .glass-dark {
-    @apply backdrop-blur-md bg-black/40 border border-white/8;
+    @apply backdrop-blur-md bg-black/40 border border-white/10;
   }
 
   .bmw-gradient {
@@ -92,9 +92,17 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* GPU acceleration hints for scroll-driven elements */
+  .will-change-transform {
+    will-change: transform;
+  }
+  .will-change-opacity {
+    will-change: opacity;
+  }
 }
 
-/* Custom cursor */
+/* ─── Custom cursor for 3D canvas ────────────────────────────── */
 .canvas-container {
   cursor: grab;
 }
@@ -102,7 +110,7 @@
   cursor: grabbing;
 }
 
-/* Loading animation */
+/* ─── Loading animation ──────────────────────────────────────── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -114,7 +122,7 @@
   animation: shimmer 1.5s infinite;
 }
 
-/* Particle effect */
+/* ─── Particle float ─────────────────────────────────────────── */
 @keyframes float {
   0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
   33% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
@@ -126,8 +134,71 @@
   animation-delay: var(--delay, 0s);
 }
 
-/* Three.js canvas */
+/* ─── Three.js canvas ────────────────────────────────────────── */
 canvas {
   outline: none;
   display: block;
+}
+
+/* ─── Scroll-driven scroll indicator bounce ──────────────────── */
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+
+.scroll-indicator {
+  animation: scrollBounce 1.5s ease-in-out infinite;
+}
+
+/* ─── Horizontal scroll gallery ──────────────────────────────── */
+.horizontal-scroll-section {
+  position: relative;
+}
+
+.horizontal-scroll-track {
+  display: flex;
+  gap: 1.5rem;
+  transition: transform 0.1s linear;
+  will-change: transform;
+}
+
+/* ─── Spec card stagger ──────────────────────────────────────── */
+.spec-card-enter {
+  animation: specCardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes specCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ─── Glow pulse for accent elements ─────────────────────────── */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(28, 105, 212, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(28, 105, 212, 0.6);
+  }
+}
+
+.glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* ─── Speed streaks for hero background ──────────────────────── */
+@keyframes speedStreak {
+  0% { transform: translateX(-100%); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+.speed-streak {
+  animation: speedStreak 3s ease-in-out infinite;
 }

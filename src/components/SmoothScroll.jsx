@@ -1,0 +1,35 @@
+import { useEffect, useRef } from 'react';
+import Lenis from 'lenis';
+
+/**
+ * SmoothScroll — wraps children in a Lenis-powered smooth scroll container.
+ * Gives the entire page buttery 60 fps inertia scrolling.
+ */
+export default function SmoothScroll({ children }) {
+  const lenisRef = useRef(null);
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 0.8,
+      touchMultiplier: 1.5,
+    });
+
+    lenisRef.current = lenis;
+
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    return () => {
+      lenis.destroy();
+    };
+  }, []);
+
+  return <>{children}</>;
+}

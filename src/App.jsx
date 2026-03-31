@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
-import HeroSection from '@/components/HeroSection';
+import ScrollHero3D from '@/components/ScrollHero3D';
+import ScrollProgressBar from '@/components/ScrollProgressBar';
+import ScrollReveal from '@/components/ScrollReveal';
+import SmoothScroll from '@/components/SmoothScroll';
 import CarViewer3D from '@/components/CarViewer3D';
 import ModelSelector from '@/components/ModelSelector';
 import ConfigPanel from '@/components/ConfigPanel';
@@ -16,7 +19,10 @@ export default function App() {
   const [isRotating, setIsRotating] = useState(true);
   const [showroomVisible, setShowroomVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [heroFinished, setHeroFinished] = useState(false);
+  const [heroProgress, setHeroProgress] = useState(0);
   const showroomRef = useRef(null);
+  const heroSectionRef = useRef(null);
 
   const handleModelSelect = useCallback((model) => {
     setSelectedModel(model);
@@ -31,6 +37,26 @@ export default function App() {
       showroomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
+
+  // Track hero scroll progress for the progress bar
+  useEffect(() => {
+    let rafId = null;
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const el = heroSectionRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const sectionTop = window.scrollY + rect.top;
+        const sectionHeight = el.scrollHeight - window.innerHeight;
+        const raw = (window.scrollY - sectionTop) / Math.max(sectionHeight, 1);
+        setHeroProgress(Math.min(Math.max(raw, 0), 1));
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     if (!showroomRef.current || showroomVisible) return;
@@ -55,200 +81,221 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-bmw-black text-white">
-      <Navbar onNavigate={() => {}} />
+    <SmoothScroll>
+      <div className="min-h-screen bg-bmw-black text-white">
+        <Navbar onNavigate={() => {}} />
 
-      {/* ─── HERO ─────────────────────────────────────────────── */}
-      <HeroSection onExplore={handleExplore} />
+        {/* ─── SCROLL PROGRESS BAR ───────────────────────────────── */}
+        <ScrollProgressBar progress={heroProgress} visible={heroProgress > 0 && heroProgress < 0.98} />
 
-      {/* ─── SHOWROOM SECTION ─────────────────────────────────── */}
-      <section
-        ref={showroomRef}
-        id="showroom"
-        className="relative min-h-screen bg-bmw-dark"
-      >
-        {/* Section header */}
-        <div className="px-6 pt-16 pb-6 max-w-[1400px] mx-auto">
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-2">
-                Virtual Showroom
-              </div>
-              <h2 className="font-display text-4xl font-800 text-white uppercase tracking-wide">
-                Explore the Lineup
-              </h2>
-              <p className="text-white/30 font-body text-sm mt-2">
-                {BMW_MODELS.length} models available · Click any model to view in 3D · Drag to rotate
-              </p>
-            </div>
-            {/* Model cycle on mobile */}
-            <div className="flex gap-2 lg:hidden">
-              <button
-                onClick={() => cycleModel(-1)}
-                className="w-9 h-9 border border-white/15 rounded-sm flex items-center justify-center text-white/50 hover:text-white hover:border-white/30 transition-all"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => cycleModel(1)}
-                className="w-9 h-9 border border-white/15 rounded-sm flex items-center justify-center text-white/50 hover:text-white hover:border-white/30 transition-all"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
+        {/* ─── SCROLL-DRIVEN 3D HERO ─────────────────────────────── */}
+        <div ref={heroSectionRef}>
+          <ScrollHero3D onFinished={() => setHeroFinished(true)} />
         </div>
 
-        {/* Model Selector */}
-        <div className="mb-4 max-w-[1400px] mx-auto">
-          <ModelSelector
-            selectedModel={selectedModel}
-            onSelect={handleModelSelect}
-          />
-        </div>
+        {/* ─── TRANSITION SPACER ─────────────────────────────────── */}
+        <div className="relative z-20 bg-bmw-black">
+          {/* Gradient transition from hero to showroom */}
+          <div className="h-32 bg-gradient-to-b from-transparent to-bmw-dark" />
 
-        {/* Main viewer layout */}
-        <div className="max-w-[1400px] mx-auto px-4 pb-12">
-          <div className="flex gap-4 h-[600px] lg:h-[680px]">
-            {/* 3D Viewer */}
-            <div className="flex-1 relative rounded-xl overflow-hidden border border-white/8 bg-gradient-to-b from-bmw-dark-3 to-bmw-black">
-              {/* Viewer overlay controls */}
-              <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-                <div className="glass px-3 py-1.5 rounded-full flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-bmw-blue animate-pulse" />
-                  <span className="text-[10px] text-white/60 font-body tracking-widest uppercase">
-                    BMW {selectedModel.name} · {selectedColor}
-                  </span>
-                </div>
-              </div>
-              {showroomVisible && (
-                <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                  <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="lg:hidden glass w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors"
-                    title="Toggle config panel"
-                  >
-                    <ChevronRight size={14} className={`transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => setIsRotating(!isRotating)}
-                    className={`glass w-8 h-8 rounded-full flex items-center justify-center transition-all ${isRotating ? 'text-bmw-blue-light' : 'text-white/40'}`}
-                    title="Toggle auto-rotation"
-                  >
-                    <RotateCw size={13} className={isRotating ? 'animate-spin-slow' : ''} />
-                  </button>
-                </div>
-              )}
-
-              {/* Previous / Next model arrows */}
-              {showroomVisible && (
-                <>
-                  <button
-                    onClick={() => cycleModel(-1)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 glass rounded-full flex items-center justify-center text-white/40 hover:text-white transition-all duration-200 hover:bg-bmw-blue/20"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <button
-                    onClick={() => cycleModel(1)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 glass rounded-full flex items-center justify-center text-white/40 hover:text-white transition-all duration-200 hover:bg-bmw-blue/20"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </>
-              )}
-
-              {/* 3D Canvas */}
-              {showroomVisible ? (
-                <CarViewer3D
-                  key={selectedModel.id}
-                  model={selectedModel}
-                  selectedColor={selectedColor}
-                  isRotating={isRotating}
-                />
-              ) : (
-                <button
-                  onClick={handleExplore}
-                  className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/70 hover:text-white transition-colors bg-gradient-to-b from-bmw-dark-3 to-bmw-black"
-                >
-                  <div className="w-14 h-14 rounded-full border border-white/20 flex items-center justify-center">
-                    <RotateCw size={18} />
+          {/* ─── SHOWROOM SECTION ─────────────────────────────────── */}
+          <section
+            ref={showroomRef}
+            id="showroom"
+            className="relative min-h-screen bg-bmw-dark"
+          >
+            {/* Section header */}
+            <ScrollReveal animation="fade-up" delay={100}>
+              <div className="px-6 pt-16 pb-6 max-w-[1400px] mx-auto">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-2">
+                      Virtual Showroom
+                    </div>
+                    <h2 className="font-display text-4xl font-800 text-white uppercase tracking-wide">
+                      Explore the Lineup
+                    </h2>
+                    <p className="text-white/30 font-body text-sm mt-2">
+                      {BMW_MODELS.length} models available · Click any model to view in 3D · Drag to rotate
+                    </p>
                   </div>
-                  <span className="font-display text-sm tracking-[0.2em] uppercase">
-                    Load 3D Showroom
-                  </span>
-                  <span className="text-xs font-body text-white/40">
-                    Optimised for smoother first load
-                  </span>
-                </button>
-              )}
-            </div>
+                  {/* Model cycle on mobile */}
+                  <div className="flex gap-2 lg:hidden">
+                    <button
+                      onClick={() => cycleModel(-1)}
+                      className="w-9 h-9 border border-white/15 rounded-sm flex items-center justify-center text-white/50 hover:text-white hover:border-white/30 transition-all"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button
+                      onClick={() => cycleModel(1)}
+                      className="w-9 h-9 border border-white/15 rounded-sm flex items-center justify-center text-white/50 hover:text-white hover:border-white/30 transition-all"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
 
-            {/* Config sidebar */}
-            <div
-              className={`transition-all duration-300 overflow-hidden rounded-xl border border-white/8 bg-bmw-dark ${
-                sidebarOpen ? 'w-[340px] opacity-100' : 'w-0 opacity-0'
-              } hidden lg:block`}
-            >
-              <ConfigPanel
-                model={selectedModel}
-                selectedColor={selectedColor}
-                onColorChange={setSelectedColor}
-                isRotating={isRotating}
-                onRotateToggle={() => setIsRotating(!isRotating)}
-              />
-            </div>
-          </div>
+            {/* Model Selector */}
+            <ScrollReveal animation="fade-up" delay={200}>
+              <div className="mb-4 max-w-[1400px] mx-auto">
+                <ModelSelector
+                  selectedModel={selectedModel}
+                  onSelect={handleModelSelect}
+                />
+              </div>
+            </ScrollReveal>
 
-          {/* Mobile config panel (below viewer) */}
-          <div className="lg:hidden mt-4 rounded-xl border border-white/8 bg-bmw-dark overflow-hidden max-h-[500px]">
-            <ConfigPanel
-              model={selectedModel}
-              selectedColor={selectedColor}
-              onColorChange={setSelectedColor}
-              isRotating={isRotating}
-              onRotateToggle={() => setIsRotating(!isRotating)}
-            />
-          </div>
+            {/* Main viewer layout */}
+            <ScrollReveal animation="fade-up" delay={300}>
+              <div className="max-w-[1400px] mx-auto px-4 pb-12">
+                <div className="flex gap-4 h-[600px] lg:h-[680px]">
+                  {/* 3D Viewer */}
+                  <div className="flex-1 relative rounded-xl overflow-hidden border border-white/8 bg-gradient-to-b from-bmw-dark-3 to-bmw-black">
+                    {/* Viewer overlay controls */}
+                    <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+                      <div className="glass px-3 py-1.5 rounded-full flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-bmw-blue animate-pulse" />
+                        <span className="text-[10px] text-white/60 font-body tracking-widest uppercase">
+                          BMW {selectedModel.name} · {selectedColor}
+                        </span>
+                      </div>
+                    </div>
+                    {showroomVisible && (
+                      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                        <button
+                          onClick={() => setSidebarOpen(!sidebarOpen)}
+                          className="lg:hidden glass w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                          title="Toggle config panel"
+                        >
+                          <ChevronRight size={14} className={`transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        <button
+                          onClick={() => setIsRotating(!isRotating)}
+                          className={`glass w-8 h-8 rounded-full flex items-center justify-center transition-all ${isRotating ? 'text-bmw-blue-light' : 'text-white/40'}`}
+                          title="Toggle auto-rotation"
+                        >
+                          <RotateCw size={13} className={isRotating ? 'animate-spin-slow' : ''} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Previous / Next model arrows */}
+                    {showroomVisible && (
+                      <>
+                        <button
+                          onClick={() => cycleModel(-1)}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 glass rounded-full flex items-center justify-center text-white/40 hover:text-white transition-all duration-200 hover:bg-bmw-blue/20"
+                        >
+                          <ChevronLeft size={18} />
+                        </button>
+                        <button
+                          onClick={() => cycleModel(1)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 glass rounded-full flex items-center justify-center text-white/40 hover:text-white transition-all duration-200 hover:bg-bmw-blue/20"
+                        >
+                          <ChevronRight size={18} />
+                        </button>
+                      </>
+                    )}
+
+                    {/* 3D Canvas */}
+                    {showroomVisible ? (
+                      <CarViewer3D
+                        key={selectedModel.id}
+                        model={selectedModel}
+                        selectedColor={selectedColor}
+                        isRotating={isRotating}
+                      />
+                    ) : (
+                      <button
+                        onClick={handleExplore}
+                        className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/70 hover:text-white transition-colors bg-gradient-to-b from-bmw-dark-3 to-bmw-black"
+                      >
+                        <div className="w-14 h-14 rounded-full border border-white/20 flex items-center justify-center">
+                          <RotateCw size={18} />
+                        </div>
+                        <span className="font-display text-sm tracking-[0.2em] uppercase">
+                          Load 3D Showroom
+                        </span>
+                        <span className="text-xs font-body text-white/40">
+                          Optimised for smoother first load
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Config sidebar */}
+                  <div
+                    className={`transition-all duration-300 overflow-hidden rounded-xl border border-white/8 bg-bmw-dark ${
+                      sidebarOpen ? 'w-[340px] opacity-100' : 'w-0 opacity-0'
+                    } hidden lg:block`}
+                  >
+                    <ConfigPanel
+                      model={selectedModel}
+                      selectedColor={selectedColor}
+                      onColorChange={setSelectedColor}
+                      isRotating={isRotating}
+                      onRotateToggle={() => setIsRotating(!isRotating)}
+                    />
+                  </div>
+                </div>
+
+                {/* Mobile config panel (below viewer) */}
+                <div className="lg:hidden mt-4 rounded-xl border border-white/8 bg-bmw-dark overflow-hidden max-h-[500px]">
+                  <ConfigPanel
+                    model={selectedModel}
+                    selectedColor={selectedColor}
+                    onColorChange={setSelectedColor}
+                    isRotating={isRotating}
+                    onRotateToggle={() => setIsRotating(!isRotating)}
+                  />
+                </div>
+              </div>
+            </ScrollReveal>
+          </section>
+
+          {/* ─── ALL MODELS GRID ──────────────────────────────────── */}
+          <section id="all-models" className="bg-bmw-black py-20">
+            <div className="max-w-[1400px] mx-auto px-6">
+              <ScrollReveal animation="fade-up">
+                <div className="mb-12">
+                  <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-3">
+                    Complete Range
+                  </div>
+                  <h2 className="font-display text-4xl font-800 text-white uppercase tracking-wide">
+                    All BMW Models
+                  </h2>
+                </div>
+              </ScrollReveal>
+              <ScrollReveal animation="fade-up" delay={100} stagger={80} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {BMW_MODELS.map((model) => (
+                  <AllModelCard
+                    key={model.id}
+                    model={model}
+                    isSelected={selectedModel.id === model.id}
+                    onSelect={() => {
+                      handleModelSelect(model);
+                      setShowroomVisible(true);
+                      showroomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  />
+                ))}
+              </ScrollReveal>
+            </div>
+          </section>
+
+          {/* ─── FEATURES SECTION ─────────────────────────────────── */}
+          <WhyBMWSection />
+
+          {/* ─── CTA SECTION ──────────────────────────────────────── */}
+          <CTASection />
+
+          <Footer />
         </div>
-      </section>
-
-      {/* ─── ALL MODELS GRID ──────────────────────────────────── */}
-      <section id="all-models" className="bg-bmw-black py-20">
-        <div className="max-w-[1400px] mx-auto px-6">
-          <div className="mb-12">
-            <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-3">
-              Complete Range
-            </div>
-            <h2 className="font-display text-4xl font-800 text-white uppercase tracking-wide">
-              All BMW Models
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {BMW_MODELS.map((model) => (
-              <AllModelCard
-                key={model.id}
-                model={model}
-                isSelected={selectedModel.id === model.id}
-                onSelect={() => {
-                  handleModelSelect(model);
-                  setShowroomVisible(true);
-                  showroomRef.current?.scrollIntoView({ behavior: 'smooth' });
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── FEATURES SECTION ─────────────────────────────────── */}
-      <WhyBMWSection />
-
-      {/* ─── CTA SECTION ──────────────────────────────────────── */}
-      <CTASection />
-
-      <Footer />
-    </div>
+      </div>
+    </SmoothScroll>
   );
 }
 
@@ -361,26 +408,44 @@ function WhyBMWSection() {
   ];
 
   return (
-    <section className="py-24 bg-bmw-dark border-t border-white/5">
-      <div className="max-w-[1400px] mx-auto px-6">
-        <div className="grid lg:grid-cols-2 gap-16 items-center mb-16">
-          <div>
-            <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-3">
-              Engineering Excellence
-            </div>
-            <h2 className="font-display text-5xl font-800 text-white uppercase tracking-wide leading-tight">
-              Built to <br />
-              <span className="text-gradient-blue">Perfection</span>
-            </h2>
-          </div>
-          <p className="text-white/40 font-body text-base leading-relaxed">
-            Every BMW is engineered with an uncompromising commitment to performance, 
-            precision, and innovation. From the iconic kidney grille to the latest 
-            electric powertrains, BMW continues to define what driving pleasure means.
-          </p>
-        </div>
+    <section className="relative py-24 bg-bmw-dark border-t border-white/5 overflow-hidden">
+      {/* Parallax background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-[0.04]"
+          style={{
+            background: 'radial-gradient(circle, #1C69D4 0%, transparent 70%)',
+          }}
+        />
+        <div
+          className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full opacity-[0.03]"
+          style={{
+            background: 'radial-gradient(circle, #4A8FE8 0%, transparent 70%)',
+          }}
+        />
+      </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="max-w-[1400px] mx-auto px-6 relative z-10">
+        <ScrollReveal animation="fade-up">
+          <div className="grid lg:grid-cols-2 gap-16 items-center mb-16">
+            <div>
+              <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-3">
+                Engineering Excellence
+              </div>
+              <h2 className="font-display text-5xl font-800 text-white uppercase tracking-wide leading-tight">
+                Built to <br />
+                <span className="text-gradient-blue">Perfection</span>
+              </h2>
+            </div>
+            <p className="text-white/40 font-body text-base leading-relaxed">
+              Every BMW is engineered with an uncompromising commitment to performance, 
+              precision, and innovation. From the iconic kidney grille to the latest 
+              electric powertrains, BMW continues to define what driving pleasure means.
+            </p>
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal animation="fade-up" delay={100} stagger={100} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f) => (
             <div
               key={f.number}
@@ -393,7 +458,7 @@ function WhyBMWSection() {
               <p className="text-sm text-white/40 font-body leading-relaxed">{f.desc}</p>
             </div>
           ))}
-        </div>
+        </ScrollReveal>
       </div>
     </section>
   );
@@ -407,26 +472,28 @@ function CTASection() {
       <div className="absolute inset-0 bg-gradient-radial from-bmw-blue/8 via-transparent to-transparent" />
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-bmw-blue/40 to-transparent" />
 
-      <div className="max-w-2xl mx-auto text-center px-6 relative z-10">
-        <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-4">
-          Begin Your Journey
+      <ScrollReveal animation="scale-in">
+        <div className="max-w-2xl mx-auto text-center px-6 relative z-10">
+          <div className="text-[10px] text-bmw-blue-light font-body tracking-[0.4em] uppercase mb-4">
+            Begin Your Journey
+          </div>
+          <h2 className="font-display text-5xl font-800 text-white uppercase tracking-wide leading-tight mb-6">
+            Ready to Drive?
+          </h2>
+          <p className="text-white/40 font-body text-base leading-relaxed mb-10">
+            Book a personalised test drive experience at your nearest BMW dealership. 
+            Feel the ultimate driving machine for yourself.
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <button className="px-8 py-4 bg-bmw-blue hover:bg-bmw-blue-dark text-white font-display font-600 text-sm tracking-[0.2em] uppercase rounded-sm transition-all duration-300 hover:shadow-[0_0_30px_rgba(28,105,212,0.5)]">
+              Book Test Drive
+            </button>
+            <button className="px-8 py-4 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-display font-500 text-sm tracking-[0.2em] uppercase rounded-sm transition-all duration-300">
+              Find Dealer
+            </button>
+          </div>
         </div>
-        <h2 className="font-display text-5xl font-800 text-white uppercase tracking-wide leading-tight mb-6">
-          Ready to Drive?
-        </h2>
-        <p className="text-white/40 font-body text-base leading-relaxed mb-10">
-          Book a personalised test drive experience at your nearest BMW dealership. 
-          Feel the ultimate driving machine for yourself.
-        </p>
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <button className="px-8 py-4 bg-bmw-blue hover:bg-bmw-blue-dark text-white font-display font-600 text-sm tracking-[0.2em] uppercase rounded-sm transition-all duration-300 hover:shadow-[0_0_30px_rgba(28,105,212,0.5)]">
-            Book Test Drive
-          </button>
-          <button className="px-8 py-4 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-display font-500 text-sm tracking-[0.2em] uppercase rounded-sm transition-all duration-300">
-            Find Dealer
-          </button>
-        </div>
-      </div>
+      </ScrollReveal>
     </section>
   );
 }
